@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -120,33 +120,24 @@ public class CompatibleProvider : IAiProvider
     {
         var modelsList = new List<string>();
 
-        try
+        var response = await _httpClient.GetAsync("models");
+        response.EnsureSuccessStatusCode();
+
+        var responseText = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(responseText);
+
+        if (doc.RootElement.TryGetProperty("data", out var dataArray) && dataArray.ValueKind == JsonValueKind.Array)
         {
-            var response = await _httpClient.GetAsync("models");
-
-            if (response.IsSuccessStatusCode)
+            foreach (var modelItem in dataArray.EnumerateArray())
             {
-                var responseText = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(responseText);
-
-                if (doc.RootElement.TryGetProperty("data", out var dataArray) && dataArray.ValueKind == JsonValueKind.Array)
+                if(modelItem.TryGetProperty("id", out var idProperty))
                 {
-                    foreach (var modelItem in dataArray.EnumerateArray())
-                    {
-                        if(modelItem.TryGetProperty("id", out var idProperty))
-                        {
-                            string? id = idProperty.GetString();
+                    string? id = idProperty.GetString();
 
-                            if (!string.IsNullOrEmpty(id))
-                                modelsList.Add(id);
-                        }
-                    }
+                    if (!string.IsNullOrEmpty(id))
+                        modelsList.Add(id);
                 }
             }
-        }
-        catch
-        {
-
         }
 
         if (modelsList.Count == 0)

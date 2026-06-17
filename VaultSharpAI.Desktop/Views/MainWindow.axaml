@@ -1,72 +1,414 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:VaultSharpAI.Desktop.ViewModels"
+        xmlns:models="using:VaultSharpAI.Desktop.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="850" d:DesignHeight="650"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
         x:Class="VaultSharpAI.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon ="/Assets/intellect.ico"
-        Title="VaultSharpAI">
+        Icon="/Assets/intellect.ico"
+        Title="VaultSharpAI"
+        Width="1050" Height="750"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
 
-    <Grid RowDefinitions="Auto, *, Auto" Margin="15">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#0B0C12"/>
+            <GradientStop Offset="1" Color="#06070A"/>
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <Grid ColumnDefinitions="280, *">
         
-        <StackPanel Grid.Row="0" Spacing="10" Margin="0,0,0,15">
-            <Grid ColumnDefinitions="*, 2*, 2*">
-                <ComboBox Grid.Column="0" ItemsSource="{Binding SavedProfiles}" 
-                          SelectedItem="{Binding SelectedProfile}" PlaceholderText="Провайдер..." HorizontalAlignment="Stretch">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ApiProfile">
-                            <TextBlock Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBox Grid.Column="1" Text="{Binding BaseUrl}" PlaceholderText="Base URL" Margin="5,0"/>
-                <TextBox Grid.Column="2" Text="{Binding ApiKey}" PlaceholderText="API Key" PasswordChar="*"/>
-            </Grid>
-            
-            <Grid ColumnDefinitions="*, Auto">
-                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelName}" HorizontalAlignment="Stretch" PlaceholderText="Выберите модель"/>
-                <Button Grid.Column="1" Content="Синхронизировать модели" Command="{Binding LoadModelsCommand}" Margin="10,0,0,0"/>
-            </Grid>
-
-            <StackPanel Orientation="Horizontal" Spacing="20" Margin="0,5,0,0">
-                <ToggleSwitch IsChecked="{Binding IsThinkingEnabled}" OnContent="Мышление ВКЛ" OffContent="Мышление ВЫКЛ"/>
-                <ToggleSwitch IsChecked="{Binding IsDeepResearchEnabled}" OnContent="Deep Research ВКЛ" OffContent="Deep Research ВЫКЛ"/>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="5">
-                    <TextBlock Text="Длина ответа (токенов):" VerticalAlignment="Center"/>
-                    <NumericUpDown Value="{Binding MaxTokens}" Minimum="512" Maximum="16384" Increment="512" Width="130"/>
+        <!-- SIDEBAR -->
+        <Border Grid.Column="0" Background="#07080D" BorderBrush="#1C1D26" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+                <!-- Sidebar Header -->
+                <StackPanel Grid.Row="0" Spacing="10" Margin="0,10,0,25">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Viewbox Width="32" Height="32">
+                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z">
+                                <Path.Fill>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                        <GradientStop Offset="0" Color="#8B5CF6"/>
+                                        <GradientStop Offset="1" Color="#6366F1"/>
+                                    </LinearGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                        </Viewbox>
+                        <TextBlock Text="VaultSharpAI" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" Foreground="White"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
-            
-            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsThinking}" Height="2"/>
-        </StackPanel>
 
-        <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="5">
-            <ListBox ItemsSource="{Binding Messages}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:ChatMessage">
-                        <DockPanel Margin="5">
-                            <TextBlock Text="{Binding Sender}" FontWeight="Bold" Width="110" DockPanel.Dock="Left"/>
-                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
-                        </DockPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                <!-- Sidebar Scrollable Settings -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="20">
+                        
+                        <!-- Provider Selector -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Провайдер API" FontSize="11" FontWeight="SemiBold" Foreground="#818CF8"/>
+                            <ComboBox ItemsSource="{Binding SavedProfiles}" 
+                                      SelectedItem="{Binding SelectedProfile}" 
+                                      PlaceholderText="Выберите профиль..." 
+                                      HorizontalAlignment="Stretch"
+                                      CornerRadius="8"
+                                      Background="#12131C"
+                                      BorderBrush="#252636">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:ApiProfile">
+                                        <TextBlock Text="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Base URL -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Base URL" FontSize="11" FontWeight="SemiBold" Foreground="#818CF8"/>
+                            <TextBox Text="{Binding BaseUrl}" 
+                                     PlaceholderText="https://api..." 
+                                     CornerRadius="8"
+                                     Background="#12131C"
+                                     BorderBrush="#252636"
+                                     Padding="10,8"
+                                     FontSize="13"/>
+                        </StackPanel>
+
+                        <!-- API Key -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="API Key" FontSize="11" FontWeight="SemiBold" Foreground="#818CF8"/>
+                            <TextBox Text="{Binding ApiKey}" 
+                                     PlaceholderText="sk-..." 
+                                     PasswordChar="•"
+                                     CornerRadius="8"
+                                     Background="#12131C"
+                                     BorderBrush="#252636"
+                                     Padding="10,8"
+                                     FontSize="13"/>
+                        </StackPanel>
+
+                        <Separator Background="#1C1D26" Margin="0,5"/>
+
+                        <!-- AI Model Selector -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Модель ИИ" FontSize="11" FontWeight="SemiBold" Foreground="#818CF8"/>
+                            <ComboBox ItemsSource="{Binding AvailableModels}" 
+                                      SelectedItem="{Binding ModelName}" 
+                                      Text="{Binding ModelSearchText}"
+                                      IsEditable="True"
+                                      IsDropDownOpen="{Binding IsModelDropdownOpen}"
+                                      PlaceholderText="Синхронизируйте..." 
+                                      HorizontalAlignment="Stretch"
+                                      CornerRadius="8"
+                                      Background="#12131C"
+                                      BorderBrush="#252636"/>
+                            
+                            <Button Content="Синхронизировать" 
+                                    Command="{Binding LoadModelsCommand}" 
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Background="#1A1B29"
+                                    BorderBrush="#313247"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="0,8"
+                                    Margin="0,4,0,0"
+                                    FontSize="12"/>
+                        </StackPanel>
+
+                        <Separator Background="#1C1D26" Margin="0,5"/>
+
+                        <!-- Toggle Switches -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Опции" FontSize="11" FontWeight="SemiBold" Foreground="#818CF8"/>
+                            
+                            <ToggleSwitch IsChecked="{Binding IsThinkingEnabled}" 
+                                          OnContent="Мышление ВКЛ" 
+                                          OffContent="Мышление ВЫКЛ"
+                                          FontSize="13"/>
+                            
+                            <ToggleSwitch IsChecked="{Binding IsDeepResearchEnabled}" 
+                                          OnContent="Deep Research ВКЛ" 
+                                          OffContent="Deep Research ВЫКЛ"
+                                          FontSize="13"/>
+
+                            <StackPanel Spacing="6" Margin="0,5,0,0">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Grid.Column="0" Text="Макс. токенов:" FontSize="11" Opacity="0.7" VerticalAlignment="Center"/>
+                                    <NumericUpDown Grid.Column="1" 
+                                                   Value="{Binding MaxTokens}" 
+                                                   Minimum="512" 
+                                                   Maximum="16384" 
+                                                   Increment="512" 
+                                                   Width="140" 
+                                                   Height="28"
+                                                   Padding="5,0"
+                                                   CornerRadius="6"
+                                                   Background="#12131C" 
+                                                   BorderBrush="#252636"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Sidebar Footer -->
+                <StackPanel Grid.Row="2" HorizontalAlignment="Center" Spacing="4">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="3">
+                        <TextBlock Text="v1.1 Design by" FontSize="9" Opacity="0.4" VerticalAlignment="Center"/>
+                        <Button Content="irving2019" 
+                                Command="{Binding OpenGithubCommand}" 
+                                FontSize="9" 
+                                Padding="0" 
+                                Background="Transparent" 
+                                BorderThickness="0" 
+                                Foreground="#818CF8" 
+                                Cursor="Hand"
+                                VerticalAlignment="Center">
+                            <Button.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Foreground" Value="#818CF8"/>
+                                </Style>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="#A78BFA"/>
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Text="Все права защищены" FontSize="9" Opacity="0.4" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <StackPanel Grid.Row="2" Spacing="5" Margin="0,15,0,0">
-            <TextBlock Text="{Binding AttachedFileInfo}" 
-                       Foreground="Gray" 
-                       FontSize="12" 
-                       Margin="5,0,0,0"/>
+        <!-- CHAT AREA -->
+        <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto">
             
-            <Grid ColumnDefinitions="Auto, *, Auto">
-                <Button Grid.Column="0" Content="📎" Command="{Binding AttachFileCommand}" Margin="0,0,10,0" ToolTip.Tip="Прикрепить изображение или файл"/>
-                <TextBox Grid.Column="1" Text="{Binding UserInput}" PlaceholderText="Введите промпт или прикрепите файл..."/>
-                <Button Grid.Column="2" Content="Отправить" Command="{Binding SendMessageCommand}" Margin="10,0,0,0"/>
+            <!-- Top Header Bar -->
+            <Border Grid.Row="0" Background="#07080D" BorderBrush="#1C1D26" BorderThickness="0,0,0,1" Height="65">
+                <Grid ColumnDefinitions="*, Auto" Margin="20,0">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding ModelName, FallbackValue='Выберите модель'}" FontSize="15" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            
+                            <!-- Wait Key State Badge -->
+                            <Border Background="#1C180E" BorderBrush="#3D3016" BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding IsStatusWaitKey}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="8" Height="8" Fill="#EAB308" VerticalAlignment="Center"/>
+                                    <TextBlock Text="wait key" FontSize="10" FontWeight="SemiBold" Foreground="#EAB308" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Online State Badge -->
+                            <Border Background="#0C1914" BorderBrush="#1C382A" BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding IsStatusOnline}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="8" Height="8" Fill="#10B981" VerticalAlignment="Center"/>
+                                    <TextBlock Text="online" FontSize="10" FontWeight="SemiBold" Foreground="#10B981" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Offline State Badge -->
+                            <Border Background="#1C0E0E" BorderBrush="#3D1616" BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding IsStatusOffline}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="8" Height="8" Fill="#EF4444" VerticalAlignment="Center"/>
+                                    <TextBlock Text="offline" FontSize="10" FontWeight="SemiBold" Foreground="#EF4444" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding BaseUrl, FallbackValue='Ожидание подключения...'}" FontSize="11" Opacity="0.5" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Chat Messages Area -->
+            <Grid Grid.Row="1">
+                <ProgressBar IsIndeterminate="True" 
+                             IsVisible="{Binding IsThinking}" 
+                             Height="2" 
+                             Background="Transparent"
+                             VerticalAlignment="Top"
+                             ZIndex="10">
+                    <ProgressBar.Foreground>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                            <GradientStop Offset="0" Color="#8B5CF6"/>
+                            <GradientStop Offset="1" Color="#6366F1"/>
+                        </LinearGradientBrush>
+                    </ProgressBar.Foreground>
+                </ProgressBar>
+
+                <ListBox x:Name="ChatListBox" 
+                         ItemsSource="{Binding Messages}" 
+                         Background="Transparent" 
+                         BorderThickness="0" 
+                         Padding="15,10">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+
+                        <Style Selector="Border.user">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="CornerRadius" Value="16,16,2,16"/>
+                            <Setter Property="Padding" Value="14,10"/>
+                            <Setter Property="Margin" Value="60,3,10,3"/>
+                            <Setter Property="MaxWidth" Value="650"/>
+                            <Setter Property="TextBlock.Foreground" Value="White"/>
+                            <Setter Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                        <GradientStop Offset="0" Color="#6D28D9"/>
+                                        <GradientStop Offset="1" Color="#4F46E5"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                        <Style Selector="Border.assistant">
+                            <Setter Property="HorizontalAlignment" Value="Left"/>
+                            <Setter Property="Background" Value="#151620"/>
+                            <Setter Property="BorderBrush" Value="#222330"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="CornerRadius" Value="16,16,16,2"/>
+                            <Setter Property="Padding" Value="14,10"/>
+                            <Setter Property="Margin" Value="10,3,60,3"/>
+                            <Setter Property="MaxWidth" Value="650"/>
+                            <Setter Property="TextBlock.Foreground" Value="#E5E7EB"/>
+                        </Style>
+
+                        <Style Selector="Border.system">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="#1A1329"/>
+                            <Setter Property="BorderBrush" Value="#312252"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="CornerRadius" Value="10"/>
+                            <Setter Property="Padding" Value="12,6"/>
+                            <Setter Property="Margin" Value="10,8,10,8"/>
+                            <Setter Property="MaxWidth" Value="650"/>
+                            <Setter Property="TextBlock.Foreground" Value="#C084FC"/>
+                            <Setter Property="TextBlock.FontSize" Value="12"/>
+                        </Style>
+                    </ListBox.Styles>
+                    
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:ChatMessage">
+                            <DockPanel HorizontalAlignment="Stretch">
+                                <Border Classes.user="{Binding IsUser}" 
+                                        Classes.assistant="{Binding IsAssistant}" 
+                                        Classes.system="{Binding IsSystem}">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{Binding Sender}" FontSize="10" FontWeight="SemiBold" Opacity="0.5" Margin="0,0,0,2"/>
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="14" LineHeight="20"/>
+                                    </StackPanel>
+                                </Border>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
-        </StackPanel>
-        
+
+            <!-- Input area -->
+            <Border Grid.Row="2" Background="#07080D" BorderBrush="#1C1D26" BorderThickness="0,1,0,0" Padding="15,15,15,20">
+                <StackPanel Spacing="10">
+                    
+                    <!-- File Badge (Success) -->
+                    <Border Background="#161B22" 
+                            CornerRadius="8" 
+                            Padding="10,6" 
+                            BorderBrush="#238636" 
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            IsVisible="{Binding IsFileAttached}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="📎" Foreground="#2EA043" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding AttachedFileInfo}" Foreground="#2EA043" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- File Badge (Error) -->
+                    <Border Background="#211B1B" 
+                            CornerRadius="8" 
+                            Padding="10,6" 
+                            BorderBrush="#DA3633" 
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            IsVisible="{Binding IsFileError}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⚠️" Foreground="#F85149" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding AttachedFileInfo}" Foreground="#F85149" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <!-- Attachment Button -->
+                        <Button Grid.Column="0" 
+                                Content="📎" 
+                                Command="{Binding AttachFileCommand}" 
+                                Width="44" 
+                                Height="44"
+                                CornerRadius="22"
+                                Background="#161723"
+                                BorderBrush="#252636"
+                                BorderThickness="1"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                FontSize="18"
+                                Margin="0,0,10,0" 
+                                ToolTip.Tip="Прикрепить изображение или файл"/>
+
+                        <!-- Input TextBox -->
+                        <TextBox Grid.Column="1" 
+                                 Text="{Binding UserInput}" 
+                                 PlaceholderText="Задайте вопрос ИИ или перетащите файл..." 
+                                 CornerRadius="22"
+                                 Background="#12131C"
+                                 BorderBrush="#252636"
+                                 BorderThickness="1"
+                                 Padding="16,11"
+                                 FontSize="14"
+                                 VerticalAlignment="Center">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Enter" Command="{Binding SendMessageCommand}"/>
+                            </TextBox.KeyBindings>
+                        </TextBox>
+
+                        <!-- Send Button -->
+                        <Button Grid.Column="2" 
+                                Content="▲" 
+                                Command="{Binding SendMessageCommand}" 
+                                Width="44" 
+                                Height="44"
+                                CornerRadius="22"
+                                Foreground="White"
+                                BorderThickness="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Margin="10,0,0,0">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#7C3AED"/>
+                                    <GradientStop Offset="1" Color="#4F46E5"/>
+                                </LinearGradientBrush>
+                            </Button.Background>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+        </Grid>
     </Grid>
 </Window>

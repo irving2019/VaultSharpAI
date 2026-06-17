@@ -7,7 +7,7 @@ OutputBaseFilename=VaultSharpAI_Windows_Setup
 Compression=lzma2
 SolidCompression=yes
 ; Используем иконку из папки проекта для самого инсталлятора
-SetupIconFile=C:\Users\vovap\source\repos\VaultSharpAI\VaultSharpAI.Desktop\Assets\intellect.ico
+SetupIconFile=..\VaultSharpAI.Desktop\Assets\intellect.ico
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -16,16 +16,16 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Главный исполняемый файл из папки publish (исходя из скриншота image_d98ac1.png)
-Source: "C:\Users\vovap\source\repos\VaultSharpAI\VaultSharpAI.Desktop\bin\Release\net10.0\win-x64\publish\VaultSharpAI.Desktop.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Главный исполняемый файл из папки publish
+Source: "..\VaultSharpAI.Desktop\bin\Release\net10.0\win-x64\publish\VaultSharpAI.Desktop.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Все остальные файлы сборки, которые лежат рядом в publish
-Source: "C:\Users\vovap\source\repos\VaultSharpAI\VaultSharpAI.Desktop\bin\Release\net10.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\VaultSharpAI.Desktop\bin\Release\net10.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Ярлык в меню Пуск с нашей иконкой
-Name: "{group}\VaultSharpAI"; Filename: "{app}\VaultSharpAI.Desktop.exe"; IconFilename: "C:\Users\vovap\source\repos\VaultSharpAI\VaultSharpAI.Desktop\Assets\intellect.ico"
+Name: "{group}\VaultSharpAI"; Filename: "{app}\VaultSharpAI.Desktop.exe"; IconFilename: "{app}\VaultSharpAI.Desktop.exe"
 ; Ярлык на Рабочем столе
-Name: "{autodesktop}\VaultSharpAI"; Filename: "{app}\VaultSharpAI.Desktop.exe"; IconFilename: "C:\Users\vovap\source\repos\VaultSharpAI\VaultSharpAI.Desktop\Assets\intellect.ico"; Tasks: desktopicon
+Name: "{autodesktop}\VaultSharpAI"; Filename: "{app}\VaultSharpAI.Desktop.exe"; IconFilename: "{app}\VaultSharpAI.Desktop.exe"; Tasks: desktopicon
 
 [Run]
 ; Предложение запустить программу после завершения установки

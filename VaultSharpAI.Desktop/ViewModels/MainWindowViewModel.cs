@@ -1,33 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using VaultSharpAI.Console.Services;
 using Tmds.DBus.Protocol;
+using VaultSharpAI.Desktop.Models;
 
 namespace VaultSharpAI.Desktop.ViewModels;
-
-public class ApiProfile
-{
-    public string Name { get; set; } = string.Empty;
-    public string BaseUrl { get; set; } = string.Empty;
-    public string ApiKey { get; set; } = string.Empty;
-}
-
-public partial class ChatMessage : ObservableObject
-{
-    [ObservableProperty]
-    private string _sender = string.Empty;
-
-    [ObservableProperty]
-    private string _text = string.Empty;
-
-    public bool IsUser => Sender == "Вы";
-}
 
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -56,7 +41,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _maxTokens = 4096;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFileAttached))]
+    [NotifyPropertyChangedFor(nameof(IsFileError))]
     private string _attachedFileInfo = "Файл не выбран";
+
+    public bool IsFileAttached => AttachedFileInfo != "Файл не выбран" && !string.IsNullOrEmpty(AttachedFileInfo) && !AttachedFileInfo.StartsWith("Ошибка");
+    public bool IsFileError => AttachedFileInfo.StartsWith("Ошибка");
 
 
     private string? _attachedImageBase64;
@@ -64,13 +54,153 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _attachedFileTextContext;
     private string? _attachedFileName;
 
+    public enum ApiConnectionStatus
+    {
+        WaitKey,
+        Online,
+        Offline
+    }
+
+    private static readonly string ProfilesFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "VaultSharpAI",
+        "profiles.json");
+
     public ObservableCollection<ChatMessage> Messages { get; } = new();
     public ObservableCollection<string> AvailableModels { get; } = new();
-    public ObservableCollection<ApiProfile> SavedProfiles { get; } = new()
+    public ObservableCollection<ApiProfile> SavedProfiles { get; } = new();
+
+    private readonly List<string> _allAvailableModels = new();
+
+    [ObservableProperty]
+    private string _modelSearchText = "";
+
+    [ObservableProperty]
+    private bool _isModelDropdownOpen;
+
+    partial void OnIsModelDropdownOpenChanged(bool value)
     {
-        new ApiProfile {Name = "OpenRouter", BaseUrl = "https://openrouter.ai/api/v1"},
-        new ApiProfile {Name = "Локальная модель", BaseUrl = "http://localhost:11434/v1", ApiKey = "ollama"}
-    };
+        if (value)
+        {
+            ResetModelFilter();
+        }
+    }
+
+    partial void OnModelSearchTextChanged(string value)
+    {
+        if (IsModelDropdownOpen && !string.IsNullOrEmpty(value))
+        {
+            AvailableModels.Clear();
+            var filtered = _allAvailableModels
+                .Where(m => m.Contains(value, StringComparison.OrdinalIgnoreCase));
+            foreach (var model in filtered)
+            {
+                AvailableModels.Add(model);
+            }
+        }
+    }
+
+    private void ResetModelFilter()
+    {
+        AvailableModels.Clear();
+        foreach (var model in _allAvailableModels)
+        {
+            AvailableModels.Add(model);
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStatusWaitKey))]
+    [NotifyPropertyChangedFor(nameof(IsStatusOnline))]
+    [NotifyPropertyChangedFor(nameof(IsStatusOffline))]
+    private ApiConnectionStatus _connectionStatus = ApiConnectionStatus.WaitKey;
+
+    public bool IsStatusWaitKey => ConnectionStatus == ApiConnectionStatus.WaitKey;
+    public bool IsStatusOnline => ConnectionStatus == ApiConnectionStatus.Online;
+    public bool IsStatusOffline => ConnectionStatus == ApiConnectionStatus.Offline;
+
+    public MainWindowViewModel()
+    {
+        LoadProfiles();
+        UpdateConnectionStatus();
+    }
+
+    private void UpdateConnectionStatus()
+    {
+        if (string.IsNullOrWhiteSpace(ApiKey) || string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            ConnectionStatus = ApiConnectionStatus.WaitKey;
+        }
+    }
+
+    partial void OnApiKeyChanged(string value) => UpdateConnectionStatus();
+    partial void OnBaseUrlChanged(string value) => UpdateConnectionStatus();
+
+    [RelayCommand]
+    private void OpenGithub()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/irving2019",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void LoadProfiles()
+    {
+        try
+        {
+            if (File.Exists(ProfilesFilePath))
+            {
+                var json = File.ReadAllText(ProfilesFilePath);
+                var profiles = JsonSerializer.Deserialize<List<ApiProfile>>(json);
+                if (profiles != null)
+                {
+                    foreach (var profile in profiles)
+                    {
+                        SavedProfiles.Add(profile);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore loading errors
+        }
+
+        if (SavedProfiles.Count == 0)
+        {
+            SavedProfiles.Add(new ApiProfile { Name = "OpenRouter", BaseUrl = "https://openrouter.ai/api/v1" });
+            SavedProfiles.Add(new ApiProfile { Name = "Локальная модель", BaseUrl = "http://localhost:11434/v1", ApiKey = "ollama" });
+            SaveProfiles();
+        }
+    }
+
+    private void SaveProfiles()
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(ProfilesFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var json = JsonSerializer.Serialize(SavedProfiles, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(ProfilesFilePath, json);
+        }
+        catch
+        {
+            // Ignore saving errors
+        }
+    }
 
     [ObservableProperty]
     private ApiProfile? _selectedProfile;
@@ -94,6 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (existing != null)
         {
             existing.ApiKey = ApiKey;
+            SaveProfiles();
         }
         else
         {
@@ -104,6 +235,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 ApiKey = ApiKey
             };
             SavedProfiles.Add(newProfile);
+            SaveProfiles();
         }
     }
 
@@ -117,16 +249,38 @@ public partial class MainWindowViewModel : ViewModelBase
         IsThinking = true;
         AvailableModels.Clear();
 
-        var provider = new CompatibleProvider(ApiKey, BaseUrl);
-        List<string> models = await provider.GetAvailableModelsAsync();
+        try
+        {
+            var provider = new CompatibleProvider(ApiKey, BaseUrl);
+            List<string> models = await provider.GetAvailableModelsAsync();
 
-        foreach (var model in models)
-            AvailableModels.Add(model);
+            _allAvailableModels.Clear();
+            _allAvailableModels.AddRange(models);
+            ResetModelFilter();
 
-        if (AvailableModels.Count > 0)
-            ModelName = AvailableModels[0];
+            if (AvailableModels.Count > 0)
+                ModelName = AvailableModels[0];
 
-        IsThinking = false;
+            ConnectionStatus = ApiConnectionStatus.Online;
+        }
+        catch (Exception ex)
+        {
+            _allAvailableModels.Clear();
+            _allAvailableModels.Add("gpt-3.5-turbo");
+            ResetModelFilter();
+
+            ModelName = "gpt-3.5-turbo";
+            Messages.Add(new ChatMessage 
+            { 
+                Sender = "Система", 
+                Text = $"Ошибка синхронизации моделей: {ex.Message}. Использовано значение по умолчанию (gpt-3.5-turbo)." 
+            });
+            ConnectionStatus = ApiConnectionStatus.Offline;
+        }
+        finally
+        {
+            IsThinking = false;
+        }
     }
 
     [RelayCommand]
@@ -228,7 +382,16 @@ public partial class MainWindowViewModel : ViewModelBase
             imgBase64,
             imgMime);
 
-        Messages.Add(new ChatMessage { Sender = "Вы", Text = response });
+        if (response.StartsWith("[Ошибка") || response.StartsWith("[Нестандартный") || response.StartsWith("[Ответ сервера"))
+        {
+            ConnectionStatus = ApiConnectionStatus.Offline;
+        }
+        else
+        {
+            ConnectionStatus = ApiConnectionStatus.Online;
+        }
+
+        Messages.Add(new ChatMessage { Sender = string.IsNullOrEmpty(ModelName) ? "VaultSharpAI" : ModelName, Text = response });
         IsThinking = false;
     }
 }
