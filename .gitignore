@@ -19,5 +19,3 @@ bin/
 *.gguf
 *.bin
 Models/
-
-README.md
